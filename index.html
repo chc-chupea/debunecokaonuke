@@ -1,0 +1,147 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>うちわカメラ</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background-color: #f0f0f0;
+    }
+    #videoWrapper {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    video, canvas, img.overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #videoWrapperInner {
+      position: relative;
+      width: 100%;
+      padding-top: 141%;
+    }
+    canvas {
+      display: none;
+    }
+    #captureBtn {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+    #notice {
+      margin-top: 10px;
+      color: green;
+      font-weight: bold;
+    }
+    #notice a {
+      color: #0077cc;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>うちわフォトカメラ</h1>
+
+  <div id="videoWrapper">
+    <div id="videoWrapperInner">
+      <video id="video" autoplay playsinline></video>
+      <img src="fan.png" class="overlay" id="overlay" alt="うちわの画像">
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+
+  <button id="captureBtn">📸 写真を撮る</button><br>
+
+  <p id="notice" style="display:none;">
+    📷 写真が自動保存されました！<br>
+    Googleフォームが自動で開かない場合は
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSdnW5Nf6pNGvvZi81VnH56RCopuNYTp-l63mkFXCD8aFEOYQQ/viewform?usp=header" target="_blank">
+      こちらをクリックしてください
+    </a>。
+  </p>
+
+  <audio id="shutterSound" src="camera-shutter.mp3" preload="auto"></audio>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const overlay = document.getElementById('overlay');
+    const captureBtn = document.getElementById('captureBtn');
+    const shutterSound = document.getElementById('shutterSound');
+    const notice = document.getElementById('notice');
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+        video.onloadedmetadata = () => {
+          video.play();
+          setTimeout(() => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+          }, 300);
+        };
+      })
+      .catch(err => {
+        alert("カメラにアクセスできません。設定をご確認ください（例: ブラウザのカメラ許可）。");
+        console.error(err);
+      });
+
+    captureBtn.addEventListener('click', () => {
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+
+      if (w === 0 || h === 0) {
+        alert("映像サイズが取得できていません。もう一度お試しください。");
+        return;
+      }
+
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+
+      shutterSound.currentTime = 0;
+      shutterSound.play().catch(e => {
+        console.warn("シャッター音を再生できませんでした:", e);
+      });
+
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(video, 0, 0, w, h);
+
+      if (overlay.complete) {
+        ctx.drawImage(overlay, 0, 0, w, h);
+        showResult();
+      } else {
+        overlay.onload = () => {
+          ctx.drawImage(overlay, 0, 0, w, h);
+          showResult();
+        };
+      }
+
+      function showResult() {
+        const dataURL = canvas.toDataURL('image/png');
+        const timestamp = new Date().getTime();
+
+        const a = document.createElement('a');
+        a.href = dataURL;
+        a.download = `うちわ画像_${timestamp}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        notice.style.display = 'block';
+        setTimeout(() => {
+          window.open("https://docs.google.com/forms/d/e/1FAIpQLSdnW5Nf6pNGvvZi81VnH56RCopuNYTp-l63mkFXCD8aFEOYQQ/viewform?usp=header", "_blank");
+        }, 1500);
+      }
+    });
+  </script>
+</body>
+</html>
